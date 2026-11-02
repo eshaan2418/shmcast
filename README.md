@@ -44,7 +44,9 @@ Apple M5, macOS, Apple clang -O3. The machine was shared with another workload (
   indices. The producer waits when the ring is full, which suits order flow, where nothing may
   be dropped.
 - **Safe against bad producers.** The reader validates the ring geometry against its own mapping
-  size and clamps lengths, so a corrupt region can never cause an out-of-bounds read (fuzzed).
+  and bounds every copy by the caller's buffer capacity, so a corrupt region can never cause an
+  out-of-bounds read or overflow the caller's buffer (fuzzed; libFuzzer found and the tests pin
+  the original capacity bug).
   Consumers can map the ring read-only.
 
 ## Run it
@@ -84,7 +86,7 @@ w.publish(msg, len, msg[0]);
 Region ro = Region::open("/md.itch");
 BroadcastReader rd(ro.data(), ro.size());
 unsigned char buf[64]; std::uint32_t len, type;
-switch (rd.poll(buf, len, type)) { case Poll::Message: /* use */ break;
+switch (rd.poll(buf, sizeof buf, len, type)) { case Poll::Message: /* use */ break;
                                    case Poll::Lapped:  /* rd.lost() grew: resync book */ break;
                                    case Poll::Empty:   break; }
 ```

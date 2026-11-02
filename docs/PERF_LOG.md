@@ -67,6 +67,18 @@ keeps a larger share.
 the head; it is the cost of their latency. A latency-insensitive consumer, such as a recorder,
 could block or sleep instead of spinning and would not tax the producer.
 
+## Bugs found by the fuzzer (CI, libFuzzer + ASan/UBSan)
+- **Buffer overflow in `poll`.** The reader copied up to `max_payload()`, which is derived from
+  the producer-controlled header. A header advertising large slots overflowed a caller's 512-byte
+  stack buffer. Fix: `poll(buf, cap, …)` bounds the copy by the caller's capacity and skips
+  (counts as lost) any consistent message longer than it. Regression test:
+  `OversizedMessageNeverOverflowsCallerBuffer`. The local fuzz driver had missed it because it
+  only generated small slot sizes.
+- **Misaligned header access.** The header type is 128-byte aligned, and the harness handed the
+  reader 16-byte-aligned memory. Real mmap'd regions are page-aligned, but the reader now
+  rejects misaligned memory explicitly (`RejectsMisalignedMemory`), and the harness allocates
+  aligned memory.
+
 ## Correctness checks behind the numbers
 - TSan: all tests clean, including 4 concurrent readers, one slow, over 2M messages.
 - ASan/UBSan: all tests clean. The fuzz target ran on 300k random regions locally (a driver

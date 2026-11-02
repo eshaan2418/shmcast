@@ -46,10 +46,18 @@ producer's head**, far enough back that it is unlikely to be lapped again at onc
 returns a torn message. The tests check delivered + lost == published exactly.
 
 ### Hostile producers
-The reader validates the header against the size of its mapping: magic, version, power-of-two
-slot count, slot size, and `nslots × slot_bytes` fitting inside the mapping. It clamps lengths to
-the slot. A corrupt or malicious region therefore cannot make it read out of bounds. This is
-fuzzed under ASan, and the reader can map the region read-only.
+The reader validates the header against its mapping:
+- 128-byte alignment;
+- magic and version;
+- a power-of-two slot count and a valid slot size;
+- `nslots × slot_bytes` fitting inside the mapping.
+
+`poll` takes the **caller's buffer capacity**. The slot size comes from the producer's header,
+so a hostile producer advertising huge slots could otherwise make a consumer with a small fixed
+buffer write past it. A consistent message longer than the buffer is skipped and counted in
+`lost()`. A corrupt or malicious region therefore cannot make the reader read out of bounds or
+write past the caller's buffer. This is fuzzed under ASan/UBSan (libFuzzer in CI found the
+original capacity bug; see PERF_LOG), and the reader can map the region read-only.
 
 ## SPSC queue
 `head` (consumer) and `tail` (producer) sit on separate 128-byte lines; the Apple M-series line is

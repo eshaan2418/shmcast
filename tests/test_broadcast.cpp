@@ -35,7 +35,11 @@ struct Ring {
   std::vector<std::uint64_t> mem;
   std::size_t bytes;
   Ring(std::size_t n, std::size_t sb) : mem(broadcast_bytes(n, sb) / 8 + 16), bytes(broadcast_bytes(n, sb)) {}
-  void* data() { return mem.data(); }
+  // 128-byte aligned like an mmap'd region (mem has 128 bytes of slack for this).
+  void* data() {
+    const auto a = reinterpret_cast<std::uintptr_t>(mem.data());
+    return reinterpret_cast<void*>((a + 127) & ~std::uintptr_t{127});
+  }
 };
 
 }  // namespace
@@ -46,18 +50,18 @@ TEST(Broadcast, PublishPollInOrder) {
   BroadcastReader rd(r.data(), r.bytes);
   std::uint64_t buf[8], msg[8];
   std::uint32_t len = 0, type = 0;
-  EXPECT_EQ(rd.poll(buf, len, type), Poll::Empty);
+  EXPECT_EQ(rd.poll(buf, sizeof buf, len, type), Poll::Empty);
   for (std::uint64_t s = 0; s < 40; ++s) {
     const std::uint32_t l = make_msg(s, msg, 6);
     w.publish(msg, l, static_cast<std::uint32_t>(s % 3));
   }
   for (std::uint64_t s = 0; s < 40; ++s) {
-    ASSERT_EQ(rd.poll(buf, len, type), Poll::Message);
+    ASSERT_EQ(rd.poll(buf, sizeof buf, len, type), Poll::Message);
     EXPECT_EQ(buf[0], s);
     EXPECT_EQ(type, s % 3);
     EXPECT_TRUE(check_msg(buf, len, 6));
   }
-  EXPECT_EQ(rd.poll(buf, len, type), Poll::Empty);
+  EXPECT_EQ(rd.poll(buf, sizeof buf, len, type), Poll::Empty);
   EXPECT_EQ(rd.lost(), 0u);
 }
 
@@ -84,10 +88,10 @@ TEST(Broadcast, LappedReaderCountsLossAndResyncs) {
   std::uint64_t msg[6], buf[6];
   for (std::uint64_t s = 0; s < 3 * n; ++s) w.publish(msg, make_msg(s, msg, 6));
   std::uint32_t len = 0, type = 0;
-  ASSERT_EQ(rd.poll(buf, len, type), Poll::Lapped);
+  ASSERT_EQ(rd.poll(buf, sizeof buf, len, type), Poll::Lapped);
   EXPECT_EQ(rd.lost(), 3 * n - n / 2);  // resumed half a ring behind the head
   std::uint64_t got = 0, expect = rd.position();
-  while (rd.poll(buf, len, type) == Poll::Message) {
+  while (rd.poll(buf, sizeof buf, len, type) == Poll::Message) {
     ASSERT_EQ(buf[0], expect++);
     ASSERT_TRUE(check_msg(buf, len, 6));
     ++got;
@@ -119,7 +123,7 @@ TEST(Broadcast, ConcurrentNoTornReads) {
       bool first = true;
       std::uint32_t len = 0, type = 0;
       for (;;) {
-        const Poll p = rd.poll(buf, len, type);
+        const Poll p = rd.poll(buf, sizeof buf, len, type);
         if (p == Poll::Message) {
           if (!check_msg(buf, len, maxw)) ++res[k].torn;
           if (!first && buf[0] <= last) ++res[k].disorder;
@@ -164,7 +168,7 @@ TEST(Broadcast, CrossProcessNamedRegion) {
     std::uint64_t buf[8] = {}, expect = 0;
     std::uint32_t len = 0, type = 0;
     while (expect < total) {
-      const Poll p = rd.poll(buf, len, type);
+      const Poll p = rd.poll(buf, sizeof buf, len, type);
       if (p == Poll::Message) {
         if (buf[0] != expect || !check_msg(buf, len, 6)) _exit(2);
         ++expect;
@@ -201,4 +205,32 @@ TEST(Broadcast, RejectsBadHeaders) {
   h->magic ^= 1;
   EXPECT_THROW(BroadcastReader(r.data(), r.bytes), std::runtime_error);
   EXPECT_THROW(BroadcastWriter(r.data(), 63, 64), std::invalid_argument);
+}
+
+// A producer whose header advertises huge slots must not be able to overflow a consumer's small
+// buffer: the oversized message is skipped and counted as lost; later messages still arrive.
+TEST(Broadcast, OversizedMessageNeverOverflowsCallerBuffer) {
+  const std::size_t n = 16, sb = 1024;
+  Ring r(n, sb);
+  BroadcastWriter w(r.data(), n, sb);
+  BroadcastReader rd(r.data(), r.bytes);
+  std::vector<unsigned char> big(900, 0xab);
+  w.publish(big.data(), 900);
+  const std::uint64_t small = 42;
+  w.publish(&small, 8);
+  unsigned char buf[64];
+  std::uint32_t len = 0, type = 0;
+  EXPECT_EQ(rd.poll(buf, sizeof buf, len, type), Poll::Lapped);
+  EXPECT_EQ(rd.lost(), 1u);
+  ASSERT_EQ(rd.poll(buf, sizeof buf, len, type), Poll::Message);
+  std::uint64_t got;
+  std::memcpy(&got, buf, 8);
+  EXPECT_EQ(len, 8u);
+  EXPECT_EQ(got, 42u);
+}
+
+TEST(Broadcast, RejectsMisalignedMemory) {
+  Ring r(64, 64);
+  BroadcastWriter w(r.data(), 64, 64);
+  EXPECT_THROW(BroadcastReader(static_cast<char*>(r.data()) + 8, r.bytes - 8), std::runtime_error);
 }

@@ -73,7 +73,7 @@ std::vector<std::uint64_t> pingpong_broadcast(int iters) {
     std::uint64_t buf[8] = {};
     std::uint32_t len = 0, type = 0;
     for (int i = 0; i < kWarm + iters; ++i) {
-      while (r.poll(buf, len, type) != Poll::Message) cpu_relax();
+      while (r.poll(buf, sizeof buf, len, type) != Poll::Message) cpu_relax();
       w.publish(buf, len);
     }
     _exit(0);
@@ -86,7 +86,7 @@ std::vector<std::uint64_t> pingpong_broadcast(int iters) {
   auto v = rtt_loop(
       iters, [&](const std::uint64_t* m) { wab.publish(m, 32); },
       [&](std::uint64_t*) {
-        while (r.poll(buf, len, type) != Poll::Message) cpu_relax();
+        while (r.poll(buf, sizeof buf, len, type) != Poll::Message) cpu_relax();
       });
   waitpid(pid, nullptr, 0);
   return v;
@@ -168,7 +168,7 @@ void fanout(int consumers, std::uint64_t msgs, double rate_per_s, bool comma) {
       std::uint64_t buf[8], got = 0, bad = 0;
       std::uint32_t len = 0, type = 0;
       while (r.position() < msgs) {
-        const Poll p = r.poll(buf, len, type);
+        const Poll p = r.poll(buf, sizeof buf, len, type);
         if (p == Poll::Message) {
           const std::uint64_t t = now_ns();
           if (buf[1] != buf[0] * 3 + 1) ++bad;

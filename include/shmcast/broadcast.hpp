@@ -107,6 +107,9 @@ class BroadcastReader {
   // Attach to an initialised ring of `bytes` bytes. Validates the header against the mapping
   // size so a corrupt or hostile header cannot cause out-of-bounds reads.
   BroadcastReader(const void* mem, std::size_t bytes) : h_(static_cast<const BroadcastHeader*>(mem)) {
+    // mmap'd regions are page-aligned; anything less aligned than the header type is not a ring.
+    if (reinterpret_cast<std::uintptr_t>(mem) % alignof(BroadcastHeader) != 0)
+      throw std::runtime_error("shmcast: ring memory is not 128-byte aligned");
     if (bytes < sizeof(BroadcastHeader) || h_->magic != kMagic || h_->version != 1)
       throw std::runtime_error("shmcast: not a broadcast ring");
     const std::uint64_t n = h_->nslots, sb = h_->slot_bytes;
@@ -123,12 +126,18 @@ class BroadcastReader {
   void seek(std::uint64_t s) { next_ = s; }
   std::uint64_t position() const { return next_; }
   std::uint64_t lost() const { return lost_; }
+  // Convenience overload: the caller guarantees buf holds max_payload() bytes (check it once,
+  // after attaching, before relying on this).
+  Poll poll(void* buf, std::uint32_t& len, std::uint32_t& type) { return poll(buf, max_payload(), len, type); }
   std::size_t max_payload() const { return slot_bytes_ - sizeof(SlotHeader); }
   std::uint64_t epoch() const { return epoch_; }
 
-  // Try to read the next message into buf (capacity >= max_payload()). On Lapped, the reader
-  // has been moved to the oldest message still safely in the ring and lost() was increased.
-  Poll poll(void* buf, std::uint32_t& len, std::uint32_t& type) {
+  // Try to read the next message into buf, which holds `cap` bytes. A message longer than cap is
+  // never copied: the slot geometry comes from the producer's header, so a corrupt or hostile
+  // producer could otherwise advertise huge slots and overflow the caller's buffer. Such a
+  // message is skipped and counted as lost. On Lapped, the reader has been moved to the oldest
+  // message still safely in the ring and lost() was increased.
+  Poll poll(void* buf, std::size_t cap, std::uint32_t& len, std::uint32_t& type) {
     const std::uint64_t e = next_;
     const SlotHeader* sh = slot(e & mask_);
     auto& seqw = const_cast<SlotHeader*>(sh)->seq;
@@ -138,7 +147,8 @@ class BroadcastReader {
       auto* hs = const_cast<SlotHeader*>(sh);
       const std::uint32_t l = std::atomic_ref<std::uint32_t>(hs->len).load(std::memory_order_relaxed);
       const std::uint32_t t = std::atomic_ref<std::uint32_t>(hs->type).load(std::memory_order_relaxed);
-      const std::uint32_t cl = l <= max_payload() ? l : static_cast<std::uint32_t>(max_payload());
+      const std::size_t lim = cap < max_payload() ? cap : max_payload();
+      const std::uint32_t cl = l <= lim ? l : static_cast<std::uint32_t>(lim);
       auto* w = reinterpret_cast<std::uint64_t*>(hs + 1);
       auto* dst = static_cast<unsigned char*>(buf);
       const std::uint32_t nw = (cl + 7) / 8;
@@ -147,11 +157,17 @@ class BroadcastReader {
         std::memcpy(dst + 8 * i, &v, i + 1 < nw ? 8 : cl - 8 * i);
       }
       std::atomic_thread_fence(std::memory_order_acquire);  // payload loads before the re-check
-      if (seqw.load(std::memory_order_relaxed) == q1 && l <= max_payload()) {
-        len = l;
-        type = t;
+      if (seqw.load(std::memory_order_relaxed) == q1) {
+        if (l <= lim) {
+          len = l;
+          type = t;
+          ++next_;
+          return Poll::Message;
+        }
+        // Consistent but larger than the caller's buffer: skip exactly this message.
         ++next_;
-        return Poll::Message;
+        ++lost_;
+        return Poll::Lapped;
       }
     }
     // Lapped (seq moved past our message before or during the copy), or a length that cannot

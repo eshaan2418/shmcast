@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
       std::uint32_t len = 0, type = 0;
       const std::uint64_t t0 = now_ns();
       for (;;) {
-        const Poll p = r.poll(buf, len, type);
+        const Poll p = r.poll(buf, sizeof buf, len, type);
         if (p == Poll::Message) {
           o.d.add(buf, len);
           // The slow consumer does ~1 us of extra "work" every 8 messages (~125 ns/message, a
