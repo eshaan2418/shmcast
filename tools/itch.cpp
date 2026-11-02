@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
       o.slow = is_slow;
       sh->ready.fetch_add(1);
       unsigned char buf[64];
-      std::uint32_t len, type;
+      std::uint32_t len = 0, type = 0;
       const std::uint64_t t0 = now_ns();
       for (;;) {
         const Poll p = r.poll(buf, len, type);

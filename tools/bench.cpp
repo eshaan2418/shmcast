@@ -70,8 +70,8 @@ std::vector<std::uint64_t> pingpong_broadcast(int iters) {
     BroadcastReader r(ab.data(), ab.size());
     r.seek(0);
     BroadcastWriter& w = wba;  // child's view of the b->a ring (initialised before fork)
-    std::uint64_t buf[8];
-    std::uint32_t len, type;
+    std::uint64_t buf[8] = {};
+    std::uint32_t len = 0, type = 0;
     for (int i = 0; i < kWarm + iters; ++i) {
       while (r.poll(buf, len, type) != Poll::Message) cpu_relax();
       w.publish(buf, len);
@@ -81,8 +81,8 @@ std::vector<std::uint64_t> pingpong_broadcast(int iters) {
   prefer_performance_core();
   BroadcastReader r(ba.data(), ba.size());
   r.seek(0);
-  std::uint64_t buf[8];
-  std::uint32_t len, type;
+  std::uint64_t buf[8] = {};
+  std::uint32_t len = 0, type = 0;
   auto v = rtt_loop(
       iters, [&](const std::uint64_t* m) { wab.publish(m, 32); },
       [&](std::uint64_t*) {
@@ -102,7 +102,7 @@ std::vector<std::uint64_t> pingpong_spsc(int iters) {
     prefer_performance_core();
     SpscConsumer c(ab.data());
     SpscProducer p(ba.data());
-    std::uint64_t buf[8];
+    std::uint64_t buf[8] = {};
     for (int i = 0; i < kWarm + iters; ++i) {
       int l;
       while ((l = c.try_pop(buf)) < 0) cpu_relax();
@@ -113,7 +113,7 @@ std::vector<std::uint64_t> pingpong_spsc(int iters) {
   prefer_performance_core();
   SpscProducer p(ab.data());
   SpscConsumer c(ba.data());
-  std::uint64_t buf[8];
+  std::uint64_t buf[8] = {};
   auto v = rtt_loop(
       iters,
       [&](const std::uint64_t* m) {
@@ -166,7 +166,7 @@ void fanout(int consumers, std::uint64_t msgs, double rate_per_s, bool comma) {
       lat.reserve(msgs);
       ready->fetch_add(1);
       std::uint64_t buf[8], got = 0, bad = 0;
-      std::uint32_t len, type;
+      std::uint32_t len = 0, type = 0;
       while (r.position() < msgs) {
         const Poll p = r.poll(buf, len, type);
         if (p == Poll::Message) {

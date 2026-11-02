@@ -45,7 +45,7 @@ TEST(Broadcast, PublishPollInOrder) {
   BroadcastWriter w(r.data(), 64, 64);
   BroadcastReader rd(r.data(), r.bytes);
   std::uint64_t buf[8], msg[8];
-  std::uint32_t len, type;
+  std::uint32_t len = 0, type = 0;
   EXPECT_EQ(rd.poll(buf, len, type), Poll::Empty);
   for (std::uint64_t s = 0; s < 40; ++s) {
     const std::uint32_t l = make_msg(s, msg, 6);
@@ -69,7 +69,7 @@ TEST(Broadcast, OddLengthsRoundTrip) {
   for (std::uint32_t l = 0; l <= 48; ++l) {
     for (std::uint32_t i = 0; i < l; ++i) in[i] = static_cast<unsigned char>(l * 31 + i);
     w.publish(in, l);
-    std::uint32_t len, type;
+    std::uint32_t len = 0, type = 0;
     ASSERT_EQ(rd.poll(out, len, type), Poll::Message);
     ASSERT_EQ(len, l);
     EXPECT_EQ(std::memcmp(in, out, l), 0) << l;
@@ -83,7 +83,7 @@ TEST(Broadcast, LappedReaderCountsLossAndResyncs) {
   BroadcastReader rd(r.data(), r.bytes);
   std::uint64_t msg[6], buf[6];
   for (std::uint64_t s = 0; s < 3 * n; ++s) w.publish(msg, make_msg(s, msg, 6));
-  std::uint32_t len, type;
+  std::uint32_t len = 0, type = 0;
   ASSERT_EQ(rd.poll(buf, len, type), Poll::Lapped);
   EXPECT_EQ(rd.lost(), 3 * n - n / 2);  // resumed half a ring behind the head
   std::uint64_t got = 0, expect = rd.position();
@@ -115,9 +115,9 @@ TEST(Broadcast, ConcurrentNoTornReads) {
       ready.fetch_add(1);
       while (!start.load()) {
       }
-      std::uint64_t buf[8], last = 0;
+      std::uint64_t buf[8] = {}, last = 0;
       bool first = true;
-      std::uint32_t len, type;
+      std::uint32_t len = 0, type = 0;
       for (;;) {
         const Poll p = rd.poll(buf, len, type);
         if (p == Poll::Message) {
@@ -161,8 +161,8 @@ TEST(Broadcast, CrossProcessNamedRegion) {
     rd.seek(0);
     char c = 1;
     (void)!write(go[1], &c, 1);
-    std::uint64_t buf[8], expect = 0;
-    std::uint32_t len, type;
+    std::uint64_t buf[8] = {}, expect = 0;
+    std::uint32_t len = 0, type = 0;
     while (expect < total) {
       const Poll p = rd.poll(buf, len, type);
       if (p == Poll::Message) {
