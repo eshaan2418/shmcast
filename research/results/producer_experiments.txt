@@ -1,0 +1,11 @@
+# 2026-11-02T09:25:07Z load: 6.15 5.73 4.35
+--consumers 0 --slow 0 --slot 80 -> "producer_msgs_per_sec": 17199767 "ok": true 
+--consumers 0 --slow 0 --slot 128 -> "producer_msgs_per_sec": 15994135 "ok": true 
+--consumers 4 --slow 0 --slot 80 -> "producer_msgs_per_sec": 9358444 "ok": true 
+--consumers 4 --slow 0 --slot 128 -> "producer_msgs_per_sec": 9515070 "ok": true 
+--consumers 4 --slow 0 --slot 80 -> "producer_msgs_per_sec": 7599640 "ok": true 
+--consumers 4 --slow 0 --slot 128 -> "producer_msgs_per_sec": 7070760 "ok": true 
+--consumers 4 --slow 0 --slot 80 --backoff 0 -> "producer_msgs_per_sec": 7291697 "ok": true 
+--consumers 4 --slow 0 --slot 80 --backoff 16 -> "producer_msgs_per_sec": 7361586 "ok": true 
+--consumers 4 --slow 0 --slot 80 --backoff 64 -> "producer_msgs_per_sec": 7364045 "ok": true 
+--consumers 4 --slow 0 --slot 80 --backoff 256 -> "producer_msgs_per_sec": 7595906 "ok": true 

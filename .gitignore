@@ -1,0 +1,7 @@
+build*/
+.cache/
+compile_commands.json
+fuzz/corpus/
+fuzz/crash-*
+.DS_Store
+NOTES.md

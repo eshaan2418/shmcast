@@ -1,0 +1,18 @@
+{
+  "file": "01302019.NASDAQ_ITCH50.gz",
+  "messages": 368366634, "bytes": 10509149824, "oversize_skipped": 0,
+  "producer_seconds": 51.516, "producer_msgs_per_sec": 7150563, "producer_fnv": "5bf597be45f123c1",
+  "ring": {"slots": 1048576, "slot_bytes": 80},
+  "consumers": [
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.521},
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.520},
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.520},
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.519},
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.519},
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.518},
+    {"slow": false, "messages": 368366634, "lost": 0, "lapped_events": 0, "fnv": "5bf597be45f123c1", "exact_match": true, "delivered_plus_lost_eq_published": true, "seconds": 51.517},
+    {"slow": true, "messages": 304402433, "lost": 63964201, "lapped_events": 122, "fnv": "d04e44a09a643a9d", "exact_match": false, "delivered_plus_lost_eq_published": true, "seconds": 51.647}
+  ],
+  "message_types": {"A": 162970455, "B": 116, "C": 158886, "D": 158273361, "E": 8096995, "F": 1725898, "H": 8805, "I": 3684511, "J": 62, "L": 193769, "P": 1326184, "Q": 17430, "R": 8714, "S": 6, "U": 27222746, "V": 1, "X": 4669874, "Y": 8821},
+  "ok": true
+}

@@ -1,0 +1,10 @@
+{
+  "file": "01302019.NASDAQ_ITCH50.gz",
+  "messages": 368366634, "bytes": 10509149824, "oversize_skipped": 0,
+  "producer_seconds": 22.970, "producer_msgs_per_sec": 16037136, "producer_fnv": "5bf597be45f123c1",
+  "ring": {"slots": 1048576, "slot_bytes": 80},
+  "consumers": [
+  ],
+  "message_types": {"A": 162970455, "B": 116, "C": 158886, "D": 158273361, "E": 8096995, "F": 1725898, "H": 8805, "I": 3684511, "J": 62, "L": 193769, "P": 1326184, "Q": 17430, "R": 8714, "S": 6, "U": 27222746, "V": 1, "X": 4669874, "Y": 8821},
+  "ok": true
+}
